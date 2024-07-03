@@ -12,13 +12,26 @@ app.use(bodyParser());
 
 // Set up sessions
 app.keys = ['your-session-secret'];
-app.use(session(app));
+
+const sessionConfig = {
+    key: 'koa-session-id', // Name of the cookie to save session ID
+    maxAge: 86400000, // Session expires in 1 day (ms)
+    overwrite: false, // Overwrite existing session data
+    httpOnly: true, // Cookie accessible only via HTTP(S)
+    signed: true, // Cookie is signed
+    rolling: false, // Reset session maxAge on every response
+    renew: false, // Renew session when session nearly expires
+    secure: false, // Set true for HTTPS only
+    sameSite: 'lax', // Protect against CSRF
+  };
+
+app.use(session(sessionConfig, app));
 
 // Middleware to protect routes
 const authMiddleware = async (ctx, next) => {
   if (!ctx.session.userId) {
     ctx.status = 401;
-    ctx.body = 'Unauthorized';
+    ctx.body = 'You are not authorized to access this resource';
   } else {
     await next();
   }
@@ -45,13 +58,14 @@ router.post('/register', async (ctx) => {
 router.post('/login', async (ctx) => {
   const { email, password } = ctx.request.body;
   try {
-    const res = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
-    if (res.rows.length > 0) {
-      const user = res.rows[0];
+    const sql = 'SELECT * FROM users WHERE email = ?';
+    const result = await db.query(sql, [email]);
+    if (result.length > 0) {
+      const user = result[0];
       const match = await bcrypt.compare(password, user.password);
       if (match) {
-        ctx.session.userId = user.id;
-        ctx.body = 'Login successful';
+        ctx.session.userId = user.id; // Set session ID upon successful login
+        ctx.body = result;
       } else {
         ctx.status = 401;
         ctx.body = 'Invalid credentials';
@@ -72,10 +86,6 @@ router.post('/logout', async (ctx) => {
   ctx.body = 'Logged out successfully';
 });
 
-// Protected route example
-router.get('/protected', authMiddleware, async (ctx) => {
-  ctx.body = 'This is a protected route';
-});
 
 // CRUD routes (as before, protected by authMiddleware if needed)
 router.get('/users', authMiddleware, async (ctx) => {
