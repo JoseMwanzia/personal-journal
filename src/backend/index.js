@@ -3,10 +3,14 @@ const Router = require('koa-router');
 const bodyParser = require('koa-bodyparser');
 const session = require('koa-session');
 const bcrypt = require('bcrypt');
-const pool = require('./db');
+const db = require('./db'); 
+const cors = require('@koa/cors');
+const { pool } = require('./db');
 
 const app = new Koa();
 const router = new Router();
+// Use CORS middleware
+app.use(cors());
 
 app.use(bodyParser());
 
