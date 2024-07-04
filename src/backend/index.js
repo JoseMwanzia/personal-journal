@@ -89,11 +89,12 @@ router.post('/logout', async (ctx) => {
 });
 
 
-// CRUD routes (as before, protected by authMiddleware if needed)
+// Get all users route
 router.get('/users', authMiddleware, async (ctx) => {
   try {
-    const res = await pool.query('SELECT * FROM users');
-    ctx.body = res.rows;
+    const sql = 'SELECT * FROM users';
+    const users = await db.query(sql);
+    ctx.body = users;
   } catch (err) {
     ctx.status = 500;
     ctx.body = err.message;
