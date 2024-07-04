@@ -46,12 +46,10 @@ router.post('/register', async (ctx) => {
   const { name, email, password } = ctx.request.body;
   try {
     const hashedPassword = await bcrypt.hash(password, 10);
-    const res = await pool.query(
-      'INSERT INTO users (name, email, password) VALUES ($1, $2, $3) RETURNING *',
-      [name, email, hashedPassword]
-    );
+    const sql = 'INSERT INTO users (name, email, password) VALUES (?, ?, ?)';
+    const result = await db.query(sql, [name, email, hashedPassword]);
     ctx.status = 201;
-    ctx.body = res.rows[0];
+    ctx.body = result;
   } catch (err) {
     ctx.status = 500;
     ctx.body = err.message;
