@@ -101,6 +101,94 @@ router.get('/users', authMiddleware, async (ctx) => {
   }
 });
 
+// Update username
+router.put('/profile', authMiddleware, async (ctx) => {
+    const { name } = ctx.request.body;
+    const userId = ctx.session.userId;
+
+    if (!name) {
+        ctx.status = 400;
+        ctx.body = { message: 'New Username is required' };
+        return;
+    }
+
+    try {
+        const sql = 'UPDATE users SET name = ? WHERE id = ?';
+        const result = await pool.query(sql, [name, userId]);
+
+        if (result) {
+            ctx.response.status = 200;
+            ctx.response.body = result.values[0]
+        } else {
+            ctx.status = 404;
+            ctx.body = { message: 'User not found or not authorized' };
+        }
+    } catch (err) {
+        ctx.status = 500;
+        ctx.body = { message: err.message };
+    }
+});
+
+
+// Update password
+router.put('/password', authMiddleware, async (ctx) => {
+    const { oldPassword, newPassword } = ctx.request.body;
+    const userId = ctx.session.userId;
+
+    if (!oldPassword || !newPassword) {
+        ctx.status = 400;
+        ctx.body = { message: 'Old and new passwords are required' };
+        return;
+    }
+
+    try {
+        // Fetch the current password for the user
+        const sql = 'SELECT * FROM users WHERE id = ?';
+        const getUser = await db.query(sql, [userId]);
+        const userPassword = getUser[0].password
+
+        // console.log(userPassword);
+        // console.log(sql);
+
+        if (userPassword.length === 0) {
+            ctx.status = 404;
+            ctx.body = { message: 'User not found or not authorized' };
+            return;
+        }
+
+        // const user = userPassword.values[0];
+        if (!userPassword) {
+            ctx.status = 500;
+            ctx.body = { message: 'User password not found' };
+            return;
+        }
+
+        const match = await bcrypt.compare(oldPassword, userPassword);
+
+        if (!match) {
+            ctx.status = 401;
+            ctx.body = { message: 'Old password is incorrect' };
+            return;
+        }
+
+        const hashedPassword = await bcrypt.hash(newPassword, 10);
+        const updateSql = 'UPDATE users SET password = ? WHERE id = ?';
+        const result = await pool.query(updateSql, [hashedPassword, userId]);
+
+        if (result) {
+            ctx.response.status = 200;
+            ctx.response.body = { message: 'Password updated successfully' };
+        } else {
+            ctx.status = 404;
+            ctx.body = { message: 'User not found or not authorized' };
+        }
+    } catch (err) {
+        ctx.status = 500;
+        ctx.body = { message: err.message };
+    }
+});
+
+
 app
   .use(router.routes())
   .use(router.allowedMethods());
